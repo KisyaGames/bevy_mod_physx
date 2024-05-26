@@ -16,6 +16,7 @@ use std::sync::{Arc, Mutex};
 
 use bevy::prelude::*;
 use bevy::reflect::{TypePath, TypeUuid};
+use bevy::render::mesh::{Indices, VertexAttributeValues};
 use physx::convex_mesh::ConvexMesh;
 use physx::cooking::{
     self,
@@ -85,56 +86,73 @@ pub enum GeometryInner {
 
 impl From<PxSphereGeometry> for Geometry {
     fn from(value: PxSphereGeometry) -> Self {
-        Self { obj: GeometryInner::Sphere(value) }
+        Self {
+            obj: GeometryInner::Sphere(value),
+        }
     }
 }
 
 impl From<PxPlaneGeometry> for Geometry {
     fn from(value: PxPlaneGeometry) -> Self {
         // makes more sense to default normal to Y axis (ground), but physx defaults to X axis
-        Self { obj: GeometryInner::Plane { plane: value, normal: Vec3::X } }
+        Self {
+            obj: GeometryInner::Plane {
+                plane: value,
+                normal: Vec3::X,
+            },
+        }
     }
 }
 
 impl From<PxCapsuleGeometry> for Geometry {
     fn from(value: PxCapsuleGeometry) -> Self {
-        Self { obj: GeometryInner::Capsule(value) }
+        Self {
+            obj: GeometryInner::Capsule(value),
+        }
     }
 }
 
 impl From<PxBoxGeometry> for Geometry {
     fn from(value: PxBoxGeometry) -> Self {
-        Self { obj: GeometryInner::Box(value) }
+        Self {
+            obj: GeometryInner::Box(value),
+        }
     }
 }
 
 impl From<Owner<ConvexMesh>> for Geometry {
     fn from(value: Owner<ConvexMesh>) -> Self {
-        Self { obj: GeometryInner::ConvexMesh {
-            mesh: Arc::new(Mutex::new(value)),
-            scale: unsafe { PxMeshScale_new() },
-            flags: ConvexMeshGeometryFlags::TightBounds,
-        } }
+        Self {
+            obj: GeometryInner::ConvexMesh {
+                mesh: Arc::new(Mutex::new(value)),
+                scale: unsafe { PxMeshScale_new() },
+                flags: ConvexMeshGeometryFlags::TightBounds,
+            },
+        }
     }
 }
 
 impl From<Owner<TriangleMesh>> for Geometry {
     fn from(value: Owner<TriangleMesh>) -> Self {
-        Self { obj: GeometryInner::TriangleMesh {
-            mesh: Arc::new(Mutex::new(value)),
-            scale: unsafe { PxMeshScale_new() },
-            flags: MeshGeometryFlags::TightBounds,
-        } }
+        Self {
+            obj: GeometryInner::TriangleMesh {
+                mesh: Arc::new(Mutex::new(value)),
+                scale: unsafe { PxMeshScale_new() },
+                flags: MeshGeometryFlags::TightBounds,
+            },
+        }
     }
 }
 
 impl From<Owner<HeightField>> for Geometry {
     fn from(value: Owner<HeightField>) -> Self {
-        Self { obj: GeometryInner::HeightField {
-            mesh: Arc::new(Mutex::new(value)),
-            scale: unsafe { PxMeshScale_new() },
-            flags: MeshGeometryFlags::TightBounds,
-        } }
+        Self {
+            obj: GeometryInner::HeightField {
+                mesh: Arc::new(Mutex::new(value)),
+                scale: unsafe { PxMeshScale_new() },
+                flags: MeshGeometryFlags::TightBounds,
+            },
+        }
     }
 }
 
@@ -147,7 +165,12 @@ impl Geometry {
         let Some(outward_normal) = outward_normal.try_normalize() else {
             panic!("halfspace outward normal is zero");
         };
-        Self { obj: GeometryInner::Plane { plane: PxPlaneGeometry::new(), normal: outward_normal } }
+        Self {
+            obj: GeometryInner::Plane {
+                plane: PxPlaneGeometry::new(),
+                normal: outward_normal,
+            },
+        }
     }
 
     pub fn capsule(half_height: f32, radius: f32) -> Self {
@@ -174,9 +197,15 @@ impl Geometry {
         match cooking::create_convex_mesh(physics.physics_mut(), &params, &mesh_desc) {
             ConvexMeshCookingResult::Success(mesh) => Ok(mesh.into()),
             ConvexMeshCookingResult::Failure => Err(ConvexMeshCookingError::Failure),
-            ConvexMeshCookingResult::InvalidDescriptor => Err(ConvexMeshCookingError::InvalidDescriptor),
-            ConvexMeshCookingResult::PolygonsLimitReached => Err(ConvexMeshCookingError::PolygonsLimitReached),
-            ConvexMeshCookingResult::ZeroAreaTestFailed => Err(ConvexMeshCookingError::ZeroAreaTestFailed),
+            ConvexMeshCookingResult::InvalidDescriptor => {
+                Err(ConvexMeshCookingError::InvalidDescriptor)
+            }
+            ConvexMeshCookingResult::PolygonsLimitReached => {
+                Err(ConvexMeshCookingError::PolygonsLimitReached)
+            }
+            ConvexMeshCookingResult::ZeroAreaTestFailed => {
+                Err(ConvexMeshCookingError::ZeroAreaTestFailed)
+            }
         }
     }
 
@@ -200,8 +229,12 @@ impl Geometry {
         match cooking::create_triangle_mesh(physics.physics_mut(), &params, &mesh_desc) {
             TriangleMeshCookingResult::Success(mesh) => Ok(mesh.into()),
             TriangleMeshCookingResult::Failure => Err(TriangleMeshCookingError::Failure),
-            TriangleMeshCookingResult::InvalidDescriptor => Err(TriangleMeshCookingError::InvalidDescriptor),
-            TriangleMeshCookingResult::LargeTriangle => Err(TriangleMeshCookingError::LargeTriangle),
+            TriangleMeshCookingResult::InvalidDescriptor => {
+                Err(TriangleMeshCookingError::InvalidDescriptor)
+            }
+            TriangleMeshCookingResult::LargeTriangle => {
+                Err(TriangleMeshCookingError::LargeTriangle)
+            }
         }
     }
 
@@ -218,7 +251,7 @@ impl Geometry {
             let sin_theta = (i as f32 * std::f32::consts::PI * 2. / segments as f32).sin();
             let y = radius * cos_theta;
             let z = radius * sin_theta;
-            points[2 * i]    = Vec3::new(-half_height, y, z);
+            points[2 * i] = Vec3::new(-half_height, y, z);
             points[2 * i + 1] = Vec3::new(half_height, y, z);
         }
 
@@ -231,7 +264,11 @@ impl Geometry {
         num_rows: usize,
         num_cols: usize,
     ) -> Self {
-        assert_eq!(heights.len(), num_rows * num_cols, "invalid number of heights provided");
+        assert_eq!(
+            heights.len(),
+            num_rows * num_cols,
+            "invalid number of heights provided"
+        );
 
         let mut samples = Vec::with_capacity(num_rows * num_cols);
 
@@ -252,6 +289,34 @@ impl Geometry {
         mesh.into()
     }
 
+    /// Convert bevy's [`Mesh`](Mesh) to [`Geometry`](Geometry), assuming
+    /// it's a valid trimesh.
+    ///
+    /// Also see [`trimesh`](Geometry::trimesh).
+    pub fn bevy_trimesh(
+        physics: &mut bpx::Physics,
+        mesh: &Mesh,
+    ) -> Result<Self, TriangleMeshCookingError> {
+        let Some((verts, indices)) = extract_mesh_vertices_indices(mesh) else {
+            return Err(TriangleMeshCookingError::Failure);
+        };
+        Self::trimesh(physics, verts.as_slice(), indices.as_slice())
+    }
+
+    /// Convert bevy's [`Mesh`](Mesh) to [`Geometry`](Geometry), assuming
+    /// it's a convex mesh.
+    ///
+    /// Also see [`convex_mesh`](Geometry::convex_mesh).
+    pub fn bevy_convex_mesh(
+        physics: &mut bpx::Physics,
+        mesh: &Mesh,
+    ) -> Result<Self, ConvexMeshCookingError> {
+        let Some((verts, _)) = extract_mesh_vertices_indices(mesh) else {
+            return Err(ConvexMeshCookingError::Failure);
+        };
+        Self::convex_mesh(physics, verts.as_slice())
+    }
+
     /// Apply scale factor to an existing mesh (convex, triangle or heightfield).
     ///
     /// Only applicable to ConvexMesh, TriangleMesh or HeightField.
@@ -264,11 +329,19 @@ impl Geometry {
     ///               ignored for HeightField).
     ///
     pub fn with_scale(mut self, scale: Vec3, rotation: Quat) -> Self {
-        let new_scale = unsafe { PxMeshScale_new_3(scale.to_physx_sys().as_ptr(), rotation.to_physx().as_ptr()) };
+        let new_scale = unsafe {
+            PxMeshScale_new_3(scale.to_physx_sys().as_ptr(), rotation.to_physx().as_ptr())
+        };
         match self.obj {
-            GeometryInner::ConvexMesh { ref mut scale, .. } => { *scale = new_scale; }
-            GeometryInner::TriangleMesh { ref mut scale, .. } => { *scale = new_scale; }
-            GeometryInner::HeightField { ref mut scale, .. } => { *scale = new_scale; }
+            GeometryInner::ConvexMesh { ref mut scale, .. } => {
+                *scale = new_scale;
+            }
+            GeometryInner::TriangleMesh { ref mut scale, .. } => {
+                *scale = new_scale;
+            }
+            GeometryInner::HeightField { ref mut scale, .. } => {
+                *scale = new_scale;
+            }
             _ => {
                 bevy::log::warn!("unable to set scale, wrong geometry type (not ConvexMesh, TriangleMesh or HeightField)");
             }
@@ -342,4 +415,29 @@ pub enum TriangleMeshCookingError {
 pub struct GeometryInnerPlane {
     pub plane: PxPlaneGeometry,
     pub normal: Vec3,
+}
+
+fn extract_mesh_vertices_indices(mesh: &Mesh) -> Option<(Vec<Vec3>, Vec<[u32; 3]>)> {
+    let vertices = mesh.attribute(Mesh::ATTRIBUTE_POSITION)?;
+    let indices = mesh.indices()?;
+
+    let vtx: Vec<_> = match vertices {
+        VertexAttributeValues::Float32(vtx) => {
+            Some(vtx.chunks(3).map(|v| Vec3::new(v[0], v[1], v[2])).collect())
+        }
+        VertexAttributeValues::Float32x3(vtx) => {
+            Some(vtx.iter().map(|v| Vec3::new(v[0], v[1], v[2])).collect())
+        }
+        _ => None,
+    }?;
+
+    let idx = match indices {
+        Indices::U16(idx) => idx
+            .chunks_exact(3)
+            .map(|i| [i[0] as u32, i[1] as u32, i[2] as u32])
+            .collect(),
+        Indices::U32(idx) => idx.chunks_exact(3).map(|i| [i[0], i[1], i[2]]).collect(),
+    };
+
+    Some((vtx, idx))
 }
